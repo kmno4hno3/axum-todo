@@ -1,5 +1,5 @@
 use crate::domain::models::todo::Todo;
-use crate::domain::repositories::todo_repositories::TodoRepositories;
+use crate::domain::repositories::todo_repository::TodoRepository;
 use crate::infrastructures::db::DbPool;
 use async_trait::async_trait;
 use uuid::Uuid;
