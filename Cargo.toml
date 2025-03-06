@@ -16,3 +16,4 @@ tracing-subscriber = {version="0.3", features = ["env-filter"]}
 uuid = {version="1.15", features = ["serde", "v4"]}
 sqlx = {version="0.8.3", features=["postgres", "runtime-tokio-rustls", "uuid", "chrono"]}
 dotenvy = "0.15"
+async-trait = "0.1"
