@@ -68,6 +68,17 @@ async fn get_all_todos<T: TodoService>(State(state): State<AppState<T>>) -> impl
     }
 }
 
+async fn get_todo_by_id<T: TodoService>(
+    State(state): State<AppState<T>>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    match state.todo_service.get_todo_by_id(id).await {
+        Ok(Some(todo)) => Json(TodoResponse::from(todo)).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "Todo not found").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch todo").into_response(),
+    }
+}
+
 async fn create_todo<T: TodoService>(
     State(state): State<AppState<T>>,
     Json(payload): Json<CreateTodoRequest>,
