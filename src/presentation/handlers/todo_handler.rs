@@ -5,9 +5,9 @@ use axum::{
     Router,
 };
 
-use http::StatusCoded;
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
-use std::sync::Async;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::models::todo::Todo;
@@ -19,21 +19,34 @@ pub struct AppState<T: TodoService> {
 }
 
 pub fn create_todo_router<T: TodoService + Send + Sync + 'static + Clone>(
-    todo_service: Tf,
+    todo_service: T,
 ) -> Router {
     let state = AppState {
         todo_service: Arc::new(todo_service),
     };
 
     Router::new()
-        .router("/todos", get(get_all_todos::<T>).post(create_todo::<T>))
+        .route("/todos", get(get_all_todos::<T>).post(create_todo::<T>))
         .route(
             "/todos/{id}",
-            get(get_todo_byd_id::<T>)
+            get(get_todo_by_id::<T>)
                 .put(update_todo::<T>)
                 .delete(delete_todo::<T>),
         )
         .with_state(state)
+}
+
+#[derive(Deserialize)]
+struct CreateTodoRequest {
+    title: String,
+    description: String,
+}
+
+#[derive(Deserialize)]
+struct UpdateTodoRequest {
+    title: String,
+    description: String,
+    completed: bool,
 }
 
 #[derive(Serialize)]
@@ -44,7 +57,7 @@ struct TodoResponse {
     completed: bool,
 }
 
-impl From<Todo> for TodoReponse {
+impl From<Todo> for TodoResponse {
     fn from(todo: Todo) -> Self {
         Self {
             id: todo.id,
@@ -64,7 +77,7 @@ async fn get_all_todos<T: TodoService>(State(state): State<AppState<T>>) -> impl
                 .collect::<Vec<_>>(),
         )
         .into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVICE_ERROR, "Failed to fetch todos").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch todos").into_response(),
     }
 }
 
@@ -85,11 +98,11 @@ async fn create_todo<T: TodoService>(
 ) -> impl IntoResponse {
     match state
         .todo_service
-        .create_todo(payload.title.payload.description)
+        .create_todo(payload.title, payload.description)
         .await
     {
-        Ok(todo) => (StatusCode::CREATED, Json(TodoResponse.from(todo))).into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVICE_ERROR, "Failed to create todo").into_response(),
+        Ok(todo) => (StatusCode::CREATED, Json(TodoResponse::from(todo))).into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create todo").into_response(),
     }
 }
 
@@ -100,14 +113,14 @@ async fn update_todo<T: TodoService>(
 ) -> impl IntoResponse {
     match state
         .todo_service
-        .update_todo(id, payload.title.payload.description, payload.completed)
+        .update_todo(id, payload.title, payload.description, payload.completed)
         .await
     {
         Ok(todo) => Json(TodoResponse::from(todo)).into_response(),
         Err(sqlx::Error::RowNotFound) => {
-            (StatusCode::INTERNAL_SERVICE_ERROR, "Todo not found").into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, "Todo not found").into_response()
         }
-        Err(_) => (StatusCode::INTERNAL_SERVICE_ERROR, "Failed to update todo").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update todo").into_response(),
     }
 }
 
@@ -118,8 +131,8 @@ async fn delete_todo<T: TodoService>(
     match state.todo_service.delete_todo(id).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(sqlx::Error::RowNotFound) => {
-            (StatusCode::INTERNAL_SERVICE_ERROR, "Todo not found").into_response()
+            (StatusCode::INTERNAL_SERVER_ERROR, "Todo not found").into_response()
         }
-        Err(_) => (StatusCode::INTERNAL_SERVICE_ERROR, "Failed to delete todo").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete todo").into_response(),
     }
 }

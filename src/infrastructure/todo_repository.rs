@@ -1,6 +1,6 @@
 use crate::domain::models::todo::Todo;
 use crate::domain::repositories::todo_repository::TodoRepository;
-use crate::infrastructures::db::DbPool;
+use crate::infrastructure::db::DbPool;
 use async_trait::async_trait;
 use uuid::Uuid;
 
@@ -9,14 +9,14 @@ pub struct TodoRepositoryImpl {
     pub pool: DbPool,
 }
 
-impl TodorepositoryImpl {
+impl TodoRepositoryImpl {
     pub fn new(pool: DbPool) -> Self {
-        Sefl { pool }
+        Self { pool }
     }
 }
 
 #[async_trait]
-impl TodoRepositoriy for TodoRepository {
+impl TodoRepository for TodoRepositoryImpl {
     async fn find_all(&self) -> Result<Vec<Todo>, sqlx::Error> {
         let todos = sqlx::query_as::<_, Todo>(
             "SELECT id, title, description, completed, created_at, updated_at FROM todos",
@@ -62,14 +62,14 @@ impl TodoRepositoriy for TodoRepository {
         .bind(todo.id)
         .fetch_one(&self.pool)
         .await?;
-        Ok(created_todo)
+        Ok(updated_todo)
     }
 
-    async fn delete(&self, id: Uuid) -> Result<Option<Todo>, sqlx::Error> {
+    async fn delete(&self, id: Uuid) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM todos WHERE id = $1")
             .bind(id)
             .execute(&self.pool)
             .await?;
-        Ok()
+        Ok(())
     }
 }
